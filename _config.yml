@@ -1,10 +1,13 @@
-title: My Match Site
-description: Simple site with Profile & Matches
-theme: null   # vigtigt: slå standard tema fra
+title: Matchboard
+description: Profile & Matches
+theme: null
 
+# Alle sider bruger vores layout
 defaults:
   - scope:
       path: ""
       type: "pages"
     values:
       layout: "default"
+
+markdown: kramdown

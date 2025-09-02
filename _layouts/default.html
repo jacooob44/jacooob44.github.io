@@ -1,25 +1,46 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>{{ page.title }} | {{ site.title }}</title>
-  <style>
-    body { margin: 0; font-family: Arial, sans-serif; background: #f9f9f9; }
-    nav { background: #333; padding: 1rem; display: flex; gap: 2rem; }
-    nav a { color: white; text-decoration: none; font-weight: bold; }
-    nav a:hover { text-decoration: underline; }
-    main { padding: 2rem; min-height: 80vh; text-align: center; }
-  </style>
+
+  <!-- Inter font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="{{ '/assets/styles.css' | relative_url }}">
 </head>
 <body>
-  <nav>
-    <a href="{{ '/index.html' | relative_url }}">Home</a>
-    <a href="{{ '/profile.html' | relative_url }}">Profile</a>
-    <a href="{{ '/matches.html' | relative_url }}">Matches</a>
-  </nav>
-  <main>
-    {{ content }}
-  </main>
+  <div class="site-wrap">
+    <nav class="appbar">
+      <span class="brand"><span class="dot"></span> Matchboard</span>
+      <div class="tabs">
+        <a class="tab" href="{{ '/index.html' | relative_url }}">Home</a>
+        <a class="tab" href="{{ '/profile.html' | relative_url }}">Profile</a>
+        <a class="tab" href="{{ '/matches.html' | relative_url }}">Matches</a>
+      </div>
+    </nav>
+
+    <main>
+      {{ content }}
+    </main>
+  </div>
+
+  <script>
+    // Markér aktiv fane
+    (function(){
+      const path = location.pathname.replace(/\/+$/, '');
+      document.querySelectorAll('.tab').forEach(a=>{
+        const href = a.getAttribute('href');
+        // Works for /user/repo/path.html and root
+        const toAbs = (u)=> new URL(u, location.origin).pathname.replace(/\/+$/, '');
+        if (toAbs(href) === path || (path.endsWith('/') && toAbs(href).endsWith('/index.html'))) {
+          a.classList.add('active');
+        }
+      });
+    })();
+  </script>
 </body>
 </html>
