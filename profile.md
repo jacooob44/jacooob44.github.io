@@ -1,7 +1,3 @@
-typeof supabase
-typeof sb
-up6('hej1')
-
 ---
 layout: default
 title: Profile

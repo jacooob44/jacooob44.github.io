@@ -13,15 +13,15 @@
   <!-- CSS -->
   <link rel="stylesheet" href="{{ '/assets/styles.css' | relative_url }}">
 
-  <!-- Supabase library -->
+  <!-- Supabase lib -->
   <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
-  <!-- Initialize Supabase + helper (AFTER library) -->
+  <!-- Init Supabase + helper -->
   <script>
     const SUPABASE_URL = "https://wmuvougpavpoybuvkvgq.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndtdXZvdWdwYXZwb3lidXZrdmdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY4MjEzMTIsImV4cCI6MjA3MjM5NzMxMn0.gBS-5DmvVXRdeYtGhax76J52u1-9JCGZXjwFd31IxbY";
 
-    // Global klient + helper
+    // Global client + helper
     window.sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     window.up6 = s => (s||'').toUpperCase().slice(0,6).replace(/[^A-Z0-9]/g,'');
   </script>
@@ -40,21 +40,5 @@
       {{ content }}
     </main>
   </div>
-</body>
-</html>
-
-  <script>
-    // Aktiv fane
-    (function(){
-      const cur = new URL(location.href);
-      document.querySelectorAll('.tab').forEach(a=>{
-        const href = new URL(a.href, location.origin);
-        if (href.pathname === cur.pathname ||
-            (cur.pathname.endsWith('/') && href.pathname.endsWith('/index.html'))) {
-          a.classList.add('active');
-        }
-      });
-    })();
-  </script>
 </body>
 </html>
