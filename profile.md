@@ -11,7 +11,7 @@ title: Profile
     <input class="input" id="newProfile" placeholder="Initials (op til 6 tegn, fx MKR123)" maxlength="6">
     <button class="btn" id="addProfile" type="button">Save</button>
   </div>
-  <p class="meta">Profiler gemmes lokalt i din browser. Kun A–Z og 0–9 er tilladt.</p>
+  <p class="meta">Profiler deles via Supabase. Kun A–Z og 0–9 er tilladt (op til 6 tegn).</p>
 
   <hr class="sep">
 
@@ -35,7 +35,7 @@ title: Profile
 
   <hr class="sep">
 
-  <h2>Booster ledger</h2>
+  <h2>Booster / Money ledger</h2>
   <div style="display:grid; gap:12px; grid-template-columns: repeat(auto-fit,minmax(260px,1fr));">
     <div class="card" style="padding:16px;">
       <h2 style="margin-bottom:8px;">De skylder mig</h2>
@@ -49,14 +49,17 @@ title: Profile
 </div>
 
 <script>
-(function(){
-  const KEY_PROFILES = 'profiles.list'; // [{ i: "ABC123" }]
-  const KEY_MATCHES  = 'matches.items'; // [{ p1, p2, when, score, winner, bet:{type,amount} }]
-  const up6  = s => (s||'').toUpperCase().slice(0,6).replace(/[^A-Z0-9]/g,'');
-  const load = (k, fb) => JSON.parse(localStorage.getItem(k) || JSON.stringify(fb));
-  const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+(async function(){
+  const listEl = document.getElementById('profilesList');
+  const detailCard = document.getElementById('profileDetail');
+  const title = document.getElementById('detailTitle');
+  const avatar = document.getElementById('detailAvatar');
+  const info = document.getElementById('detailInfo');
+  const lastList = document.getElementById('detailMatches');
+  const owedToMe = document.getElementById('ledgerOwedToMe');
+  const iOwe     = document.getElementById('ledgerIOwe');
 
-  // Avatar fit
+  // Helpers
   function fitAvatar(el, text){
     const len = (text||'').length;
     let size = 28;
@@ -67,25 +70,57 @@ title: Profile
     else size = 28;
     el.style.fontSize = size + 'px';
   }
+  function fmtWhen(ts){
+    const d = new Date(ts);
+    const pad = n=> String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  }
 
-  // Opret profil
-  const newProfile = document.getElementById('newProfile');
-  document.getElementById('addProfile').addEventListener('click', ()=>{
-    const v = up6(newProfile.value);
-    if (!v) return;
-    const arr = load(KEY_PROFILES, []);
-    if (!arr.some(p=>p.i===v)) {
-      arr.unshift({ i: v });
-      localStorage.setItem('profiles.list', JSON.stringify(arr));
-      renderProfiles();
-    }
-    newProfile.value = ''; // reset
+  // Supabase calls
+  async function fetchProfiles(){
+    const { data, error } = await sb.from('profiles').select('initials').order('created_at', { ascending:false });
+    if (error) { console.error(error); return []; }
+    return data.map(r => ({ i: r.initials }));
+  }
+  async function createProfile(initials){
+    const i = up6(initials);
+    if (!i) return;
+    const { error } = await sb.from('profiles').insert({ initials: i });
+    if (error && error.code !== '23505') console.error(error); // ignorer duplicate
+    await renderProfiles();
+  }
+  async function deleteProfile(initials){
+    await sb.from('profiles').delete().eq('initials', up6(initials));
+    await renderProfiles();
+    // hvis den viste profil blev slettet, så skjul detaljen
+    if (title.dataset.u === up6(initials)) detailCard.style.display = 'none';
+  }
+  async function fetchMatchesFor(initials, limit=null){
+    const i = up6(initials);
+    let q = sb.from('matches')
+      .select('id,p1,p2,when_ts,score,winner,bet_type,amount')
+      .or(`p1.eq.${i},p2.eq.${i}`)
+      .order('when_ts', { ascending:false });
+    if (limit) q = q.limit(limit);
+    const { data, error } = await q;
+    if (error) { console.error(error); return []; }
+    return data.map(r => ({
+      id: r.id, p1: r.p1, p2: r.p2,
+      when: fmtWhen(r.when_ts),
+      score: r.score, winner: r.winner,
+      bet: { type: r.bet_type, amount: r.amount }
+    }));
+  }
+
+  // UI actions
+  document.getElementById('addProfile').addEventListener('click', async ()=>{
+    const inp = document.getElementById('newProfile');
+    await createProfile(inp.value);
+    inp.value = ''; // reset
   });
 
-  // Liste over profiler
-  const listEl = document.getElementById('profilesList');
-  function renderProfiles(){
-    const arr = load(KEY_PROFILES, []);
+  async function renderProfiles(){
+    const arr = await fetchProfiles();
     listEl.innerHTML = '';
     if (!arr.length){
       const empty = document.createElement('div');
@@ -120,16 +155,7 @@ title: Profile
       const del = document.createElement('button');
       del.className = 'btn ghost';
       del.textContent = 'Delete';
-      del.addEventListener('click', ()=>{
-        const next = load(KEY_PROFILES, []).filter(p => p.i !== i);
-        localStorage.setItem('profiles.list', JSON.stringify(next));
-        renderProfiles();
-        // hvis man sletter den viste profil, så skjul detalje
-        const title = document.getElementById('detailTitle');
-        if (title.dataset.u === i) {
-          document.getElementById('profileDetail').style.display = 'none';
-        }
-      });
+      del.addEventListener('click', ()=> deleteProfile(i));
 
       const right = document.createElement('div');
       right.style.display='flex';
@@ -140,19 +166,9 @@ title: Profile
       listEl.appendChild(row);
     });
   }
-  renderProfiles();
 
-  // Vis profil-detaljer nederst
-  function showProfileDetail(initials){
+  async function showProfileDetail(initials){
     const u = up6(initials);
-    const detailCard = document.getElementById('profileDetail');
-    const title = document.getElementById('detailTitle');
-    const avatar = document.getElementById('detailAvatar');
-    const info = document.getElementById('detailInfo');
-    const list = document.getElementById('detailMatches');
-    const owedToMe = document.getElementById('ledgerOwedToMe');
-    const iOwe     = document.getElementById('ledgerIOwe');
-
     detailCard.style.display = 'grid';
     title.textContent = `Profile: ${u}`;
     title.dataset.u = u;
@@ -160,18 +176,14 @@ title: Profile
     fitAvatar(avatar, u);
     info.textContent = 'Seneste 10 kampe, samt netto booster/money-gæld mod hver modstander.';
 
-    // hent kampe for u
-    const all = load(KEY_MATCHES, []);
-    const mine = all.filter(m => up6(m.p1) === u || up6(m.p2) === u);
-
-    // Seneste 10
-    list.innerHTML = '';
-    const last10 = mine.slice(0, 10);
+    // Seneste 10 kampe
+    const last10 = await fetchMatchesFor(u, 10);
+    lastList.innerHTML = '';
     if (!last10.length){
       const li = document.createElement('li');
       li.className = 'item';
       li.innerHTML = '<span class="meta">Ingen kampe endnu.</span>';
-      list.appendChild(li);
+      lastList.appendChild(li);
     } else {
       last10.forEach(m=>{
         const li = document.createElement('li'); li.className='item';
@@ -186,43 +198,36 @@ title: Profile
           <div class="meta">Score: ${m.score || '—'} • Winner: ${wtxt} • Bet: ${betText}</div>
         `;
         li.append(left);
-        list.appendChild(li);
+        lastList.appendChild(li);
       });
     }
 
-    // Ledger: netto pr. modstander og pr. bet-type
-    // + tal = modstander skylder mig; - tal = jeg skylder modstanderen
-    const ledger = {}; // { OPP: { booster: net, money: net } }
-    mine.forEach(m=>{
-      if (!m.bet || !m.bet.type || !m.bet.amount) return;
-      const type = (m.bet.type === 'booster' ? 'booster' : (m.bet.type === 'money' ? 'money' : null));
-      if (!type) return;
-      const amt = Number(m.bet.amount) || 0;
-      if (amt <= 0) return;
+    // Ledger (brug alle kampe for u, ikke kun 10)
+    const all = await fetchMatchesFor(u, null);
+    const ledger = {}; // opp => { booster: net, money: net }
+    all.forEach(m=>{
+      const type = (m.bet && (m.bet.type==='booster' || m.bet.type==='money')) ? m.bet.type : null;
+      const amt = Number(m.bet?.amount || 0);
+      if (!type || amt <= 0) return;
 
       const meIsP1 = up6(m.p1) === u;
       const opp = meIsP1 ? up6(m.p2) : up6(m.p1);
-
       if (!ledger[opp]) ledger[opp] = { booster: 0, money: 0 };
 
       if (m.winner === 'p1'){
-        // p1 vandt
         if (meIsP1) ledger[opp][type] += amt;  // de skylder mig
         else        ledger[opp][type] -= amt;  // jeg skylder dem
       } else if (m.winner === 'p2'){
-        // p2 vandt
         if (meIsP1) ledger[opp][type] -= amt;  // jeg skylder dem
         else        ledger[opp][type] += amt;  // de skylder mig
-      } 
-      // hvis winner tom => ingen gældsændring
+      }
     });
 
-    // udfyld to lister
     owedToMe.innerHTML = '';
     iOwe.innerHTML = '';
 
-    const opponents = Object.keys(ledger);
-    if (!opponents.length){
+    const opps = Object.keys(ledger);
+    if (!opps.length){
       const a = document.createElement('li'); a.className='item';
       a.innerHTML = '<span class="meta">Ingen gæld registreret.</span>';
       owedToMe.appendChild(a);
@@ -232,29 +237,26 @@ title: Profile
       return;
     }
 
-    opponents.forEach(opp=>{
+    opps.forEach(opp=>{
       const { booster, money } = ledger[opp];
-      // “De skylder mig”
       if ((booster||0) > 0 || (money||0) > 0){
         const li = document.createElement('li'); li.className='item';
         const parts = [];
         if (booster > 0) parts.push(`Booster × ${booster}`);
         if (money   > 0) parts.push(`Money: ${money}`);
-        li.innerHTML = `<strong>${opp}</strong><div class="meta">${parts.join(' • ')}</div>`;
+        li.innerHTML = `<strong>${opp}</strong><div class="meta">${parts.join(' • ') || '—'}</div>`;
         owedToMe.appendChild(li);
       }
-      // “Jeg skylder”
       if ((booster||0) < 0 || (money||0) < 0){
         const li = document.createElement('li'); li.className='item';
         const parts = [];
         if (booster < 0) parts.push(`Booster × ${Math.abs(booster)}`);
         if (money   < 0) parts.push(`Money: ${Math.abs(money)}`);
-        li.innerHTML = `<strong>${opp}</strong><div class="meta">${parts.join(' • ')}</div>`;
+        li.innerHTML = `<strong>${opp}</strong><div class="meta">${parts.join(' • ') || '—'}</div>`;
         iOwe.appendChild(li);
       }
     });
 
-    // hvis listerne blev tomme, vis “ingen…”
     if (!owedToMe.children.length){
       const li = document.createElement('li'); li.className='item';
       li.innerHTML = '<span class="meta">Ingen gæld registreret.</span>';
@@ -266,5 +268,7 @@ title: Profile
       iOwe.appendChild(li);
     }
   }
+
+  await renderProfiles();
 })();
 </script>

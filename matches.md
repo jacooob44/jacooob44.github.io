@@ -30,11 +30,7 @@ title: Matches
 </div>
 
 <script>
-(function(){
-  const KEY_MATCHES  = 'matches.items';
-  const KEY_PROFILES = 'profiles.list';
-  const KEY_ME       = 'profile.initials'; // valgfrit prefill
-
+(async function(){
   const listEl  = document.getElementById('list');
   const p1      = document.getElementById('p1');
   const p2      = document.getElementById('p2');
@@ -45,26 +41,12 @@ title: Matches
   const amount  = document.getElementById('amount');
   const addBtn  = document.getElementById('add');
 
-  const up6  = s => (s||'').toUpperCase().slice(0,6).replace(/[^A-Z0-9]/g,'');
-  const load = (k, fb) => JSON.parse(localStorage.getItem(k) || JSON.stringify(fb));
-  const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
-
-  function ensureProfiles(...initials){
-    const arr = load(KEY_PROFILES, []);
-    let changed = false;
-    initials.forEach(i=>{
-      const v = up6(i);
-      if (v && !arr.some(p=>p.i===v)){ arr.push({i:v}); changed = true; }
-    });
-    if (changed) save(KEY_PROFILES, arr);
-  }
-
+  // Helpers
   function nowTimeHHMMSS(){
     const d = new Date();
     const pad = n => String(n).padStart(2,'0');
     return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
   }
-
   function combineDateWithNow(dateStr){
     const d = dateStr ? new Date(dateStr) : new Date();
     const yyyy = d.getFullYear();
@@ -72,46 +54,22 @@ title: Matches
     const dd = String(d.getDate()).padStart(2,'0');
     return `${yyyy}-${mm}-${dd} ${nowTimeHHMMSS()}`;
   }
-
-  function render(){
-    const items = load(KEY_MATCHES, []);
-    listEl.innerHTML = '';
-    if (!items.length){
-      const li = document.createElement('li');
-      li.className = 'item';
-      li.innerHTML = '<span class="meta">Ingen matches endnu. Tilføj din første ovenfor.</span>';
-      listEl.appendChild(li);
-      return;
-    }
-    items.forEach((m, idx)=>{
-      const li = document.createElement('li'); li.className = 'item';
-      const left = document.createElement('div');
-      const wtxt = m.winner === 'p1' ? up6(m.p1) : (m.winner === 'p2' ? up6(m.p2) : '—');
-
-      const betText = m.bet?.type === 'booster'
-        ? `Booster × ${m.bet.amount}`
-        : (m.bet?.type === 'money' ? `Money: ${m.bet.amount}` : '—');
-
-      left.innerHTML = `
-        <div><strong>${up6(m.p1)}</strong> vs <strong>${up6(m.p2)}</strong></div>
-        <div class="meta">${m.when || ''}</div>
-        <div class="meta">Score: ${m.score || '—'} • Winner: ${wtxt} • Bet: ${betText}</div>
-      `;
-      const right = document.createElement('div');
-      const del = document.createElement('button'); del.className = 'btn ghost'; del.textContent = 'Delete';
-      del.addEventListener('click', ()=>{
-        const arr = load(KEY_MATCHES, []);
-        arr.splice(idx,1);
-        save(KEY_MATCHES, arr);
-        render();
-      });
-      right.appendChild(del);
-      li.append(left, right);
-      listEl.appendChild(li);
-    });
+  function fmtWhen(ts){
+    // ts er ISO fra DB
+    const d = new Date(ts);
+    const pad = n=> String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
   }
 
-  addBtn.addEventListener('click', ()=>{
+  async function upsertProfile(i){
+    const initials = up6(i);
+    if (!initials) return;
+    // Prøv insert; ignorér duplicate-fejl (unique index)
+    const { error } = await sb.from('profiles').insert({ initials }).select().single();
+    // error 23505 = duplicate key, det er ok. Andre fejl kan logges i konsollen.
+  }
+
+  async function createMatch(){
     const a = up6(p1.value);
     const b = up6(p2.value);
     const t = betType.value;
@@ -121,32 +79,81 @@ title: Matches
     if (!t || !(t === 'booster' || t === 'money')) return;
     if (!Number.isFinite(amt) || amt < 1 || amt > 5000) return;
 
-    const when = combineDateWithNow(dateIn.value);
-    const item = {
-      p1: a,
-      p2: b,
-      when,
-      score: (score.value || '').trim(),
-      winner: winner.value, // 'p1' | 'p2' | ''
-      bet: { type: t, amount: amt }
+    const whenLocal = combineDateWithNow(dateIn.value); // "YYYY-MM-DD HH:MM:SS"
+    const iso = whenLocal.replace(' ', 'T');            // "YYYY-MM-DDTHH:MM:SS"  (supabase timestamptz kan læse det)
+
+    const row = {
+      p1: a, p2: b,
+      when_ts: iso,
+      score: (score.value || '').trim() || null,
+      winner: winner.value || null,
+      bet_type: t,
+      amount: amt
     };
-    const arr = load(KEY_MATCHES, []);
-    arr.unshift(item);
-    save(KEY_MATCHES, arr);
+    const { error } = await sb.from('matches').insert(row);
+    if (!error){
+      await Promise.all([upsertProfile(a), upsertProfile(b)]);
+      await render();
+      // reset felter
+      p1.value=''; p2.value=''; dateIn.value=''; score.value=''; winner.value=''; betType.value=''; amount.value='';
+    } else {
+      console.error(error);
+    }
+  }
 
-    // auto-tilføj profiler
-    ensureProfiles(a, b);
+  async function fetchMatches(){
+    const { data, error } = await sb.from('matches').select('id,p1,p2,when_ts,score,winner,bet_type,amount').order('when_ts', { ascending:false });
+    if (error) { console.error(error); return []; }
+    return data.map(r => ({
+      id: r.id, p1: r.p1, p2: r.p2,
+      when: fmtWhen(r.when_ts),
+      score: r.score, winner: r.winner,
+      bet: { type: r.bet_type, amount: r.amount }
+    }));
+  }
 
-    // reset felter
-    p1.value=''; p2.value='';
-    dateIn.value=''; score.value=''; winner.value='';
-    betType.value=''; amount.value='';
-    render();
-  });
+  async function deleteMatch(id){
+    await sb.from('matches').delete().eq('id', id);
+    await render();
+  }
 
-  const me = localStorage.getItem(KEY_ME);
+  async function render(){
+    const items = await fetchMatches();
+    listEl.innerHTML = '';
+    if (!items.length){
+      const li = document.createElement('li');
+      li.className = 'item';
+      li.innerHTML = '<span class="meta">Ingen matches endnu. Tilføj din første ovenfor.</span>';
+      listEl.appendChild(li);
+      return;
+    }
+    items.forEach(m=>{
+      const li = document.createElement('li'); li.className = 'item';
+      const left = document.createElement('div');
+      const wtxt = m.winner === 'p1' ? up6(m.p1) : (m.winner === 'p2' ? up6(m.p2) : '—');
+      const betText = m.bet?.type === 'booster'
+        ? `Booster × ${m.bet.amount}`
+        : (m.bet?.type === 'money' ? `Money: ${m.bet.amount}` : '—');
+      left.innerHTML = `
+        <div><strong>${up6(m.p1)}</strong> vs <strong>${up6(m.p2)}</strong></div>
+        <div class="meta">${m.when || ''}</div>
+        <div class="meta">Score: ${m.score || '—'} • Winner: ${wtxt} • Bet: ${betText}</div>
+      `;
+      const right = document.createElement('div');
+      const del = document.createElement('button'); del.className = 'btn ghost'; del.textContent = 'Delete';
+      del.addEventListener('click', ()=> deleteMatch(m.id));
+      right.appendChild(del);
+      li.append(left, right);
+      listEl.appendChild(li);
+    });
+  }
+
+  document.getElementById('add').addEventListener('click', createMatch);
+
+  // (Valgfrit) prefill p1 med din egen profil fra localStorage hvis du stadig bruger det til prefill
+  const me = localStorage.getItem('profile.initials');
   if (me) p1.value = up6(me);
 
-  render();
+  await render();
 })();
 </script>

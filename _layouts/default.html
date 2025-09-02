@@ -1,3 +1,17 @@
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  // Sæt disse to værdier fra Supabase Settings → API
+  const SUPABASE_URL = "https://wmuvougpavpoybuvkvgq.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndtdXZvdWdwYXZwb3lidXZrdmdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY4MjEzMTIsImV4cCI6MjA3MjM5NzMxMn0.gBS-5DmvVXRdeYtGhax76J52u1-9JCGZXjwFd31IxbY";
+
+  // Global klient
+  window.sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // Lille helper – normaliser initialer som i din app
+  window.up6 = (s)=> (s||'').toUpperCase().slice(0,6).replace(/[^A-Z0-9]/g,'');
+</script>
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
