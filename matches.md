@@ -16,7 +16,12 @@ title: Matches
       <option value="p1">Player 1</option>
       <option value="p2">Player 2</option>
     </select>
-    <input class="input" id="bet" placeholder="Bet (hvad blev bettet)">
+    <select class="input" id="betType" aria-label="Bet type" required>
+      <option value="">Bet type</option>
+      <option value="booster">Booster</option>
+      <option value="money">Money</option>
+    </select>
+    <input class="input" id="amount" type="number" min="1" max="5000" placeholder="Amount (1–5000)">
     <button class="btn" id="add" type="button">Add</button>
   </div>
   <hr style="border:0; height:1px; background: var(--border); margin:16px 0;">
@@ -28,18 +33,19 @@ title: Matches
 (function(){
   const KEY_MATCHES  = 'matches.items';
   const KEY_PROFILES = 'profiles.list';
-  const KEY_ME       = 'profile.initials'; // hvis du vil forfylde p1
+  const KEY_ME       = 'profile.initials'; // valgfrit prefill
 
-  const listEl = document.getElementById('list');
-  const p1     = document.getElementById('p1');
-  const p2     = document.getElementById('p2');
-  const dateIn = document.getElementById('date');
-  const score  = document.getElementById('score');
-  const winner = document.getElementById('winner');
-  const bet    = document.getElementById('bet');
-  const addBtn = document.getElementById('add');
+  const listEl  = document.getElementById('list');
+  const p1      = document.getElementById('p1');
+  const p2      = document.getElementById('p2');
+  const dateIn  = document.getElementById('date');
+  const score   = document.getElementById('score');
+  const winner  = document.getElementById('winner');
+  const betType = document.getElementById('betType');
+  const amount  = document.getElementById('amount');
+  const addBtn  = document.getElementById('add');
 
-  const up6 = s => (s||'').toUpperCase().slice(0,6).replace(/[^A-Z0-9]/g,'');
+  const up6  = s => (s||'').toUpperCase().slice(0,6).replace(/[^A-Z0-9]/g,'');
   const load = (k, fb) => JSON.parse(localStorage.getItem(k) || JSON.stringify(fb));
   const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 
@@ -60,7 +66,6 @@ title: Matches
   }
 
   function combineDateWithNow(dateStr){
-    // Hvis dato er tom ⇒ brug dagens dato
     const d = dateStr ? new Date(dateStr) : new Date();
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth()+1).padStart(2,'0');
@@ -82,10 +87,15 @@ title: Matches
       const li = document.createElement('li'); li.className = 'item';
       const left = document.createElement('div');
       const wtxt = m.winner === 'p1' ? up6(m.p1) : (m.winner === 'p2' ? up6(m.p2) : '—');
+
+      const betText = m.bet?.type === 'booster'
+        ? `Booster × ${m.bet.amount}`
+        : (m.bet?.type === 'money' ? `Money: ${m.bet.amount}` : '—');
+
       left.innerHTML = `
         <div><strong>${up6(m.p1)}</strong> vs <strong>${up6(m.p2)}</strong></div>
         <div class="meta">${m.when || ''}</div>
-        <div class="meta">Score: ${m.score || '—'} • Winner: ${wtxt} • Bet: ${m.bet || '—'}</div>
+        <div class="meta">Score: ${m.score || '—'} • Winner: ${wtxt} • Bet: ${betText}</div>
       `;
       const right = document.createElement('div');
       const del = document.createElement('button'); del.className = 'btn ghost'; del.textContent = 'Delete';
@@ -104,16 +114,21 @@ title: Matches
   addBtn.addEventListener('click', ()=>{
     const a = up6(p1.value);
     const b = up6(p2.value);
-    if (!a || !b) return;
+    const t = betType.value;
+    const amt = Number(amount.value);
 
-    const when = combineDateWithNow(dateIn.value); // vælg dato, auto tid (sekunder)
+    if (!a || !b) return;
+    if (!t || !(t === 'booster' || t === 'money')) return;
+    if (!Number.isFinite(amt) || amt < 1 || amt > 5000) return;
+
+    const when = combineDateWithNow(dateIn.value);
     const item = {
       p1: a,
       p2: b,
       when,
       score: (score.value || '').trim(),
       winner: winner.value, // 'p1' | 'p2' | ''
-      bet: (bet.value || '').trim()
+      bet: { type: t, amount: amt }
     };
     const arr = load(KEY_MATCHES, []);
     arr.unshift(item);
@@ -123,13 +138,12 @@ title: Matches
     ensureProfiles(a, b);
 
     // reset felter
-    p1.value=''; p2.value=''; // bevidst ikke prefill igen
-    // behold valgt dato? Krav: reset → vi nulstiller også dato & øvrige
-    dateIn.value=''; score.value=''; winner.value=''; bet.value='';
+    p1.value=''; p2.value='';
+    dateIn.value=''; score.value=''; winner.value='';
+    betType.value=''; amount.value='';
     render();
   });
 
-  // Prefill p1 med din gemte profil hvis den findes
   const me = localStorage.getItem(KEY_ME);
   if (me) p1.value = up6(me);
 
