@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ page.title }} | {{ site.title }}</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #f9f9f9; }
+    nav { background: #333; padding: 1rem; display: flex; gap: 2rem; }
+    nav a { color: white; text-decoration: none; font-weight: bold; }
+    nav a:hover { text-decoration: underline; }
+    main { padding: 2rem; min-height: 80vh; text-align: center; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="{{ '/index.html' | relative_url }}">Home</a>
+    <a href="{{ '/profile.html' | relative_url }}">Profile</a>
+    <a href="{{ '/matches.html' | relative_url }}">Matches</a>
+  </nav>
+  <main>
+    {{ content }}
+  </main>
+</body>
+</html>
