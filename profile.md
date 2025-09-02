@@ -10,8 +10,8 @@ title: Profile
       <h2 id="initialsLabel">Initials</h2>
       <div class="form-row">
         <input class="input" id="initialsInput" placeholder="Fx JB" maxlength="4">
-        <button class="btn" id="saveInitials">Save</button>
-        <button class="btn ghost" id="clearInitials">Clear</button>
+        <button class="btn" id="saveInitials" type="button">Save</button>
+        <button class="btn ghost" id="clearInitials" type="button">Clear</button>
       </div>
       <p class="meta" style="margin-top:8px;">Initialer gemmes i din browser (localStorage).</p>
     </div>

@@ -2,7 +2,9 @@ title: Matchboard
 description: Profile & Matches
 theme: null
 
-# Alle sider bruger vores layout
+url: "https://jacooob44.github.io"
+baseurl: ""   # vigtigt: tom på root-sites
+
 defaults:
   - scope:
       path: ""
