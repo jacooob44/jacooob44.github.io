@@ -1,0 +1,31 @@
+---
+layout: default
+title: Matches
+---
+
+<div style="text-align:center; width:100%;">
+  <h1>Matches</h1>
+  <form id="matchForm">
+    <input type="text" id="JACBUN" placeholder="Player 1 Initials" required>
+    <input type="text" id="AMIPAN" placeholder="Player 2 Initials" required>
+    <button type="submit">Add Match</button>
+  </form>
+  <ul id="matchesList"></ul>
+</div>
+
+<script>
+  const form = document.getElementById('matchForm');
+  const list = document.getElementById('matchesList');
+
+  form.addEventListener('submit', function(event) {
+    event.preventDefault();
+    const p1 = document.getElementById('JACBUN').value;
+    const p2 = document.getElementById('AMIPAN').value;
+
+    const li = document.createElement('li');
+    li.textContent = `${p1} vs ${p2}`;
+    list.appendChild(li);
+
+    form.reset();
+  });
+</script>
