@@ -2,58 +2,43 @@
 layout: default
 title: Profile
 ---
----
-layout: default
-title: Matches
----
 
-<!-- Midlertidig: indlæs Supabase her på siden -->
+<!-- Supabase init -->
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
-  const SUPABASE_URL = "https://wmuvougpavpoybuvkvgq.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndtdXZvdWdwYXZwb3lidXZrdmdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY4MjEzMTIsImV4cCI6MjA3MjM5NzMxMn0.gBS-5DmvVXRdeYtGhax76J52u1-9JCGZXjwFd31IxbY";
-  window.sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  window.up6 = s => (s||'').toUpperCase().slice(0,6).replace(/[^A-Z0-9]/g,'');
+  if (!window.sb) {
+    var SUPABASE_URL = "https://wmuvougpavpoybuvkvgq.supabase.co";
+    var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndtdXZvdWdwYXZwb3lidXZrdmdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY4MjEzMTIsImV4cCI6MjA3MjM5NzMxMn0.gBS-5DmvVXRdeYtGhax76J52u1-9JCGZXjwFd31IxbY";
+    window.sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+  if (!window.up6) {
+    window.up6 = s => (s||'').toUpperCase().slice(0,6).replace(/[^A-Z0-9]/g,'');
+  }
 </script>
-
-<!-- din eksisterende HTML følger her -->
-<div class="card">
-  ...
-</div>
 
 <div class="card" style="display:grid; gap:14px;">
   <h1>Profiles</h1>
-
-  <!-- ÉT sted at oprette profil -->
   <h2>Create profile</h2>
   <div class="form-row">
     <input class="input" id="newProfile" placeholder="Initials (op til 6 tegn, fx MKR123)" maxlength="6">
     <button class="btn" id="addProfile" type="button">Save</button>
   </div>
   <p class="meta">Profiler deles via Supabase. Kun A–Z og 0–9 er tilladt (op til 6 tegn).</p>
-
   <hr class="sep">
-
-  <!-- Liste over alle profiler -->
   <h2>All profiles</h2>
   <div id="profilesList" style="display:grid; gap:10px;"></div>
 </div>
 
-<!-- Profil-detaljer nederst på siden -->
 <div class="card" id="profileDetail" style="display:none; gap:14px;">
   <h1 id="detailTitle">Profile</h1>
   <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
     <div class="avatar" id="detailAvatar">??</div>
     <p class="meta" id="detailInfo"></p>
   </div>
-
   <hr class="sep">
-
   <h2>Last 10 matches</h2>
   <ul class="list" id="detailMatches"></ul>
-
   <hr class="sep">
-
   <h2>Booster / Money ledger</h2>
   <div style="display:grid; gap:12px; grid-template-columns: repeat(auto-fit,minmax(260px,1fr));">
     <div class="card" style="padding:16px;">
@@ -78,7 +63,6 @@ title: Matches
   const owedToMe = document.getElementById('ledgerOwedToMe');
   const iOwe     = document.getElementById('ledgerIOwe');
 
-  // Helpers
   function fitAvatar(el, text){
     const len = (text||'').length;
     let size = 28;
@@ -95,7 +79,6 @@ title: Matches
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
   }
 
-  // Supabase calls
   async function fetchProfiles(){
     const { data, error } = await sb.from('profiles').select('initials').order('created_at', { ascending:false });
     if (error) { console.error(error); return []; }
@@ -105,13 +88,12 @@ title: Matches
     const i = up6(initials);
     if (!i) return;
     const { error } = await sb.from('profiles').insert({ initials: i });
-    if (error && error.code !== '23505') console.error(error); // ignorer duplicate
+    if (error && error.code !== '23505') console.error(error);
     await renderProfiles();
   }
   async function deleteProfile(initials){
     await sb.from('profiles').delete().eq('initials', up6(initials));
     await renderProfiles();
-    // hvis den viste profil blev slettet, så skjul detaljen
     if (title.dataset.u === up6(initials)) detailCard.style.display = 'none';
   }
   async function fetchMatchesFor(initials, limit=null){
@@ -131,11 +113,10 @@ title: Matches
     }));
   }
 
-  // UI actions
   document.getElementById('addProfile').addEventListener('click', async ()=>{
     const inp = document.getElementById('newProfile');
     await createProfile(inp.value);
-    inp.value = ''; // reset
+    inp.value = '';
   });
 
   async function renderProfiles(){
@@ -151,36 +132,29 @@ title: Matches
     arr.forEach(({ i })=>{
       const row = document.createElement('div');
       row.className = 'item';
-
       const left = document.createElement('div');
       left.style.display='flex';
       left.style.alignItems='center';
       left.style.gap='10px';
-
       const av = document.createElement('div'); 
       av.className = 'avatar'; 
       av.textContent = i;
       fitAvatar(av, i);
-
       const txt = document.createElement('div');
       txt.innerHTML = `<strong>${i}</strong><div class="meta">Open for profile & matches</div>`;
       left.append(av, txt);
-
       const open = document.createElement('button');
       open.className = 'btn';
       open.textContent = 'Open';
       open.addEventListener('click', ()=> showProfileDetail(i));
-
       const del = document.createElement('button');
       del.className = 'btn ghost';
       del.textContent = 'Delete';
       del.addEventListener('click', ()=> deleteProfile(i));
-
       const right = document.createElement('div');
       right.style.display='flex';
       right.style.gap='8px';
       right.append(open, del);
-
       row.append(left, right);
       listEl.appendChild(row);
     });
@@ -194,8 +168,6 @@ title: Matches
     avatar.textContent = u;
     fitAvatar(avatar, u);
     info.textContent = 'Seneste 10 kampe, samt netto booster/money-gæld mod hver modstander.';
-
-    // Seneste 10 kampe
     const last10 = await fetchMatchesFor(u, 10);
     lastList.innerHTML = '';
     if (!last10.length){
@@ -218,7 +190,7 @@ title: Matches
         `;
         li.append(left);
         lastList.appendChild(li);
-      });
+           });
     }
 
     // Ledger (brug alle kampe for u, ikke kun 10)
@@ -242,6 +214,7 @@ title: Matches
       }
     });
 
+    // Tøm og genopbyg listerne
     owedToMe.innerHTML = '';
     iOwe.innerHTML = '';
 
@@ -258,6 +231,8 @@ title: Matches
 
     opps.forEach(opp=>{
       const { booster, money } = ledger[opp];
+
+      // De skylder mig (positive værdier)
       if ((booster||0) > 0 || (money||0) > 0){
         const li = document.createElement('li'); li.className='item';
         const parts = [];
@@ -266,6 +241,8 @@ title: Matches
         li.innerHTML = `<strong>${opp}</strong><div class="meta">${parts.join(' • ') || '—'}</div>`;
         owedToMe.appendChild(li);
       }
+
+      // Jeg skylder (negative værdier)
       if ((booster||0) < 0 || (money||0) < 0){
         const li = document.createElement('li'); li.className='item';
         const parts = [];
@@ -276,6 +253,7 @@ title: Matches
       }
     });
 
+    // Hvis en af listerne endte tom, vis “ingen…”
     if (!owedToMe.children.length){
       const li = document.createElement('li'); li.className='item';
       li.innerHTML = '<span class="meta">Ingen gæld registreret.</span>';
@@ -288,6 +266,7 @@ title: Matches
     }
   }
 
+  // Første render af profil-listen
   await renderProfiles();
 })();
 </script>

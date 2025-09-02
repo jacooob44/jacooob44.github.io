@@ -3,24 +3,18 @@ layout: default
 title: Matches
 ---
 
----
-layout: default
-title: Matches
----
-
-<!-- Midlertidig: indlæs Supabase her på siden -->
+<!-- Supabase init -->
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
-  const SUPABASE_URL = "https://wmuvougpavpoybuvkvgq.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndtdXZvdWdwYXZwb3lidXZrdmdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY4MjEzMTIsImV4cCI6MjA3MjM5NzMxMn0.gBS-5DmvVXRdeYtGhax76J52u1-9JCGZXjwFd31IxbY";
-  window.sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  window.up6 = s => (s||'').toUpperCase().slice(0,6).replace(/[^A-Z0-9]/g,'');
+  if (!window.sb) {
+    var SUPABASE_URL = "https://wmuvougpavpoybuvkvgq.supabase.co";
+    var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndtdXZvdWdwYXZwb3lidXZrdmdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY4MjEzMTIsImV4cCI6MjA3MjM5NzMxMn0.gBS-5DmvVXRdeYtGhax76J52u1-9JCGZXjwFd31IxbY";
+    window.sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+  if (!window.up6) {
+    window.up6 = s => (s||'').toUpperCase().slice(0,6).replace(/[^A-Z0-9]/g,'');
+  }
 </script>
-
-<!-- din eksisterende HTML følger her -->
-<div class="card">
-  ...
-</div>
 
 <div class="card">
   <h1>Create Match</h1>
@@ -59,9 +53,7 @@ title: Matches
   const winner  = document.getElementById('winner');
   const betType = document.getElementById('betType');
   const amount  = document.getElementById('amount');
-  const addBtn  = document.getElementById('add');
 
-  // Helpers
   function nowTimeHHMMSS(){
     const d = new Date();
     const pad = n => String(n).padStart(2,'0');
@@ -75,7 +67,6 @@ title: Matches
     return `${yyyy}-${mm}-${dd} ${nowTimeHHMMSS()}`;
   }
   function fmtWhen(ts){
-    // ts er ISO fra DB
     const d = new Date(ts);
     const pad = n=> String(n).padStart(2,'0');
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
@@ -84,9 +75,7 @@ title: Matches
   async function upsertProfile(i){
     const initials = up6(i);
     if (!initials) return;
-    // Prøv insert; ignorér duplicate-fejl (unique index)
-    const { error } = await sb.from('profiles').insert({ initials }).select().single();
-    // error 23505 = duplicate key, det er ok. Andre fejl kan logges i konsollen.
+    await sb.from('profiles').insert({ initials }).select().single().catch(()=>{});
   }
 
   async function createMatch(){
@@ -99,8 +88,8 @@ title: Matches
     if (!t || !(t === 'booster' || t === 'money')) return;
     if (!Number.isFinite(amt) || amt < 1 || amt > 5000) return;
 
-    const whenLocal = combineDateWithNow(dateIn.value); // "YYYY-MM-DD HH:MM:SS"
-    const iso = whenLocal.replace(' ', 'T');            // "YYYY-MM-DDTHH:MM:SS"  (supabase timestamptz kan læse det)
+    const whenLocal = combineDateWithNow(dateIn.value);
+    const iso = whenLocal.replace(' ', 'T');
 
     const row = {
       p1: a, p2: b,
@@ -114,7 +103,6 @@ title: Matches
     if (!error){
       await Promise.all([upsertProfile(a), upsertProfile(b)]);
       await render();
-      // reset felter
       p1.value=''; p2.value=''; dateIn.value=''; score.value=''; winner.value=''; betType.value=''; amount.value='';
     } else {
       console.error(error);
@@ -169,11 +157,6 @@ title: Matches
   }
 
   document.getElementById('add').addEventListener('click', createMatch);
-
-  // (Valgfrit) prefill p1 med din egen profil fra localStorage hvis du stadig bruger det til prefill
-  const me = localStorage.getItem('profile.initials');
-  if (me) p1.value = up6(me);
-
   await render();
 })();
 </script>
