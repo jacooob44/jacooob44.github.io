@@ -20,39 +20,35 @@ title: Profile
   <div id="profilesList" style="display:grid; gap:10px;"></div>
 </div>
 
-<!-- Profil-detaljevisning via ?u=XXXX -->
-<div class="card" id="profileDetail" style="display:none; gap:10px;">
-  <h1 id="detailTitle">Profile</h1>
-  <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
-    <div class="avatar" id="detailAvatar">??</div>
-    <p class="meta" id="detailInfo"></p>
-  </div>
-  <hr class="sep">
-  <h2>Matches for this profile</h2>
-  <ul class="list" id="detailMatches"></ul>
-</div>
-
 <script>
 (function(){
   const KEY_PROFILES = 'profiles.list'; // [{ i: "ABC123" }]
-  const KEY_MATCHES  = 'matches.items'; // [{ p1, p2, when, score, winner, bet }]
-  const KEY_ME       = 'profile.initials'; // valgfrit: gem din "egen" til prefill på matches
-
-  const byId = id => document.getElementById(id);
+  const KEY_ME       = 'profile.initials'; // valgfrit: brug første som "min"
+  const up6  = s => (s||'').toUpperCase().slice(0,6).replace(/[^A-Z0-9]/g,'');
   const load = (k, fb) => JSON.parse(localStorage.getItem(k) || JSON.stringify(fb));
   const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
-  const up6  = s => (s||'').toUpperCase().slice(0,6).replace(/[^A-Z0-9]/g,'');
+
+  // Helper: tilpas avatar-fontstørrelse efter længde (2–6)
+  function fitAvatar(el, text){
+    const len = (text||'').length;
+    let size = 28;           // default
+    if (len >= 6) size = 16; // 6 tegn
+    else if (len === 5) size = 18;
+    else if (len === 4) size = 20;
+    else if (len === 3) size = 22;
+    else if (len <= 2) size = 28;
+    el.style.fontSize = size + 'px';
+  }
 
   // Opret profil (ét sted)
-  const newProfile = byId('newProfile');
-  byId('addProfile').addEventListener('click', ()=>{
+  const newProfile = document.getElementById('newProfile');
+  document.getElementById('addProfile').addEventListener('click', ()=>{
     const v = up6(newProfile.value);
     if (!v) return;
     const arr = load(KEY_PROFILES, []);
     if (!arr.some(p=>p.i===v)) {
       arr.unshift({ i: v });
       save(KEY_PROFILES, arr);
-      // første profil kan gemmes som "min" for prefill på matches
       if (!localStorage.getItem(KEY_ME)) localStorage.setItem(KEY_ME, v);
       renderProfiles();
     }
@@ -61,7 +57,7 @@ title: Profile
   });
 
   // Liste over profiler
-  const listEl = byId('profilesList');
+  const listEl = document.getElementById('profilesList');
   function renderProfiles(){
     const arr = load(KEY_PROFILES, []);
     listEl.innerHTML = '';
@@ -81,62 +77,42 @@ title: Profile
       left.style.alignItems='center';
       left.style.gap='10px';
 
-      const av = document.createElement('div'); av.className = 'avatar'; av.textContent = i;
+      const av = document.createElement('div'); 
+      av.className = 'avatar'; 
+      av.textContent = i;
+      fitAvatar(av, i);
+
       const txt = document.createElement('div');
-      txt.innerHTML = `<strong>${i}</strong><div class="meta">Klik for profil & kampe</div>`;
+      txt.innerHTML = `<strong>${i}</strong><div class="meta">Open for profile & matches</div>`;
       left.append(av, txt);
 
+      // Open-knap: ny side (profile-view.html?u=XXXX)
       const open = document.createElement('a');
       open.className = 'btn';
       open.textContent = 'Open';
-      const u = new URL(location.href);
-      u.searchParams.set('u', i);
-      open.href = u.toString();
+      open.href = "{{ '/profile-view.html' | relative_url }}" + "?u=" + encodeURIComponent(i);
 
-      row.append(left, open);
+      // Delete-knap
+      const del = document.createElement('button');
+      del.className = 'btn ghost';
+      del.textContent = 'Delete';
+      del.addEventListener('click', ()=>{
+        const next = load(KEY_PROFILES, []).filter(p => p.i !== i);
+        save(KEY_PROFILES, next);
+        // hvis KEY_ME var denne profil, ryd den
+        if (localStorage.getItem(KEY_ME) === i) localStorage.removeItem(KEY_ME);
+        renderProfiles();
+      });
+
+      const right = document.createElement('div');
+      right.style.display='flex';
+      right.style.gap='8px';
+      right.append(open, del);
+
+      row.append(left, right);
       listEl.appendChild(row);
     });
   }
   renderProfiles();
-
-  // Profil-detaljevisning
-  function getParam(name){
-    const url = new URL(location.href);
-    return url.searchParams.get(name);
-  }
-  const uParam = up6(getParam('u') || '');
-  if (uParam){
-    const detailCard = byId('profileDetail');
-    detailCard.style.display = 'grid';
-    byId('detailTitle').textContent  = `Profile: ${uParam}`;
-    byId('detailAvatar').textContent = uParam;
-    byId('detailInfo').textContent   = 'Kampe hvor profilen er tagget (p1 eller p2).';
-
-    const all = load(KEY_MATCHES, []);
-    const mine = all.filter(m => up6(m.p1) === uParam || up6(m.p2) === uParam);
-
-    const list = byId('detailMatches');
-    list.innerHTML = '';
-
-    if (!mine.length){
-      const li = document.createElement('li');
-      li.className = 'item';
-      li.innerHTML = '<span class="meta">Ingen kampe endnu.</span>';
-      list.appendChild(li);
-    } else {
-      mine.forEach(m=>{
-        const li = document.createElement('li'); li.className='item';
-        const left = document.createElement('div');
-        const wtxt = m.winner === 'p1' ? up6(m.p1) : (m.winner === 'p2' ? up6(m.p2) : '—');
-        left.innerHTML = `
-          <div><strong>${up6(m.p1)}</strong> vs <strong>${up6(m.p2)}</strong></div>
-          <div class="meta">${m.when || ''}</div>
-          <div class="meta">Score: ${m.score || '—'} • Winner: ${wtxt} • Bet: ${m.bet || '—'}</div>
-        `;
-        li.append(left);
-        list.appendChild(li);
-      });
-    }
-  }
 })();
 </script>

@@ -93,13 +93,19 @@
   .item + .item { margin-top: 8px; }
   
   /* Avatar */
-  .avatar {
-    width: 84px; height: 84px; border-radius: 50%;
-    display: grid; place-items: center;
-    background: linear-gradient(145deg, var(--brand-weak), transparent);
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow);
-    font-weight: 800; font-size: 28px; color: var(--text);
-  }
-  .meta { color: var(--muted); font-size: 14px; }
+.avatar {
+  width: 84px; height: 84px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: linear-gradient(145deg, var(--brand-weak), transparent);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  font-weight: 800; 
+  font-size: 28px;           /* startstørrelse – justeres med JS */
+  color: var(--text);
+  line-height: 1; 
+  white-space: nowrap;       /* undgå linjeskift */
+  overflow: hidden;          /* klip overløb */
+  text-overflow: clip;
+  padding: 0 6px;            /* lidt indvendig luft */
+}
   
