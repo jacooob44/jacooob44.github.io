@@ -3,19 +3,6 @@ layout: default
 title: Profile
 ---
 
-<!-- Supabase init -->
-<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script>
-  if (!window.sb) {
-    var SUPABASE_URL = "https://wmuvougpavpoybuvkvgq.supabase.co";
-    var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndtdXZvdWdwYXZwb3lidXZrdmdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY4MjEzMTIsImV4cCI6MjA3MjM5NzMxMn0.gBS-5DmvVXRdeYtGhax76J52u1-9JCGZXjwFd31IxbY";
-    window.sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  }
-  if (!window.up6) {
-    window.up6 = s => (s||'').toUpperCase().slice(0,6).replace(/[^A-Z0-9]/g,'');
-  }
-</script>
-
 <div class="card" style="display:grid; gap:14px;">
   <h1>Profiles</h1>
   <h2>Create profile</h2>
