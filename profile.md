@@ -3,6 +3,28 @@ layout: default
 title: Profile
 ---
 
+<script>
+  const API = "https://script.google.com/macros/s/AKfycbzprP3330YCRKrHfF-kqoR9pIOzkePw_zTyrIfqUWJTvZAjiLMHfkzR8bY4coutv_4srA/exec";
+  const up6 = s => (s||'').toUpperCase().slice(0,6).replace(/[^A-Z0-9]/g,'');
+  const api = {
+    async listProfiles(){ return fetch(API + '?action=list_profiles').then(r=>r.json()).then(j=>j.data||[]); },
+    async addProfile(initials){
+      return fetch(API,{ method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action:'add_profile', initials })
+      }).then(r=>r.json());
+    },
+    async deleteProfile(initials){
+      return fetch(API,{ method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action:'delete_profile', initials })
+      }).then(r=>r.json());
+    },
+    async listMatchesFor(initials, limit){
+      const url = API + `?action=list_matches&initials=${encodeURIComponent(initials)}${limit?`&limit=${limit}`:''}`;
+      return fetch(url).then(r=>r.json()).then(j=>j.data||[]);
+    }
+  };
+</script>
+
 <div class="card" style="display:grid; gap:14px;">
   <h1>Profiles</h1>
   <h2>Create profile</h2>
@@ -10,7 +32,7 @@ title: Profile
     <input class="input" id="newProfile" placeholder="Initials (op til 6 tegn, fx MKR123)" maxlength="6">
     <button class="btn" id="addProfile" type="button">Save</button>
   </div>
-  <p class="meta">Profiler deles via Supabase. Kun A–Z og 0–9 er tilladt (op til 6 tegn).</p>
+  <p class="meta">Profiler deles via Google Sheet (Apps Script).</p>
   <hr class="sep">
   <h2>All profiles</h2>
   <div id="profilesList" style="display:grid; gap:10px;"></div>
@@ -40,7 +62,7 @@ title: Profile
 </div>
 
 <script>
-(async function(){
+(function(){
   const listEl = document.getElementById('profilesList');
   const detailCard = document.getElementById('profileDetail');
   const title = document.getElementById('detailTitle');
@@ -60,54 +82,24 @@ title: Profile
     else size = 28;
     el.style.fontSize = size + 'px';
   }
+
   function fmtWhen(ts){
     const d = new Date(ts);
     const pad = n=> String(n).padStart(2,'0');
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
   }
 
-  async function fetchProfiles(){
-    const { data, error } = await sb.from('profiles').select('initials').order('created_at', { ascending:false });
-    if (error) { console.error(error); return []; }
-    return data.map(r => ({ i: r.initials }));
-  }
-  async function createProfile(initials){
-    const i = up6(initials);
-    if (!i) return;
-    const { error } = await sb.from('profiles').insert({ initials: i });
-    if (error && error.code !== '23505') console.error(error);
-    await renderProfiles();
-  }
-  async function deleteProfile(initials){
-    await sb.from('profiles').delete().eq('initials', up6(initials));
-    await renderProfiles();
-    if (title.dataset.u === up6(initials)) detailCard.style.display = 'none';
-  }
-  async function fetchMatchesFor(initials, limit=null){
-    const i = up6(initials);
-    let q = sb.from('matches')
-      .select('id,p1,p2,when_ts,score,winner,bet_type,amount')
-      .or(`p1.eq.${i},p2.eq.${i}`)
-      .order('when_ts', { ascending:false });
-    if (limit) q = q.limit(limit);
-    const { data, error } = await q;
-    if (error) { console.error(error); return []; }
-    return data.map(r => ({
-      id: r.id, p1: r.p1, p2: r.p2,
-      when: fmtWhen(r.when_ts),
-      score: r.score, winner: r.winner,
-      bet: { type: r.bet_type, amount: r.amount }
-    }));
-  }
-
   document.getElementById('addProfile').addEventListener('click', async ()=>{
     const inp = document.getElementById('newProfile');
-    await createProfile(inp.value);
+    const i = up6(inp.value);
+    if (!i) return;
+    await api.addProfile(i);
     inp.value = '';
+    await renderProfiles();
   });
 
   async function renderProfiles(){
-    const arr = await fetchProfiles();
+    const arr = await api.listProfiles();
     listEl.innerHTML = '';
     if (!arr.length){
       const empty = document.createElement('div');
@@ -116,32 +108,42 @@ title: Profile
       listEl.appendChild(empty);
       return;
     }
-    arr.forEach(({ i })=>{
+    arr.forEach(({ initials:i })=>{
       const row = document.createElement('div');
       row.className = 'item';
+
       const left = document.createElement('div');
       left.style.display='flex';
       left.style.alignItems='center';
       left.style.gap='10px';
+
       const av = document.createElement('div'); 
       av.className = 'avatar'; 
       av.textContent = i;
       fitAvatar(av, i);
+
       const txt = document.createElement('div');
       txt.innerHTML = `<strong>${i}</strong><div class="meta">Open for profile & matches</div>`;
       left.append(av, txt);
+
       const open = document.createElement('button');
       open.className = 'btn';
       open.textContent = 'Open';
       open.addEventListener('click', ()=> showProfileDetail(i));
+
       const del = document.createElement('button');
       del.className = 'btn ghost';
       del.textContent = 'Delete';
-      del.addEventListener('click', ()=> deleteProfile(i));
+      del.addEventListener('click', async ()=>{
+        await api.deleteProfile(i);
+        await renderProfiles();
+        if ((title.dataset.u||'') === i) detailCard.style.display='none';
+      });
+
       const right = document.createElement('div');
-      right.style.display='flex';
-      right.style.gap='8px';
+      right.style.display='flex'; right.style.gap='8px';
       right.append(open, del);
+
       row.append(left, right);
       listEl.appendChild(row);
     });
@@ -155,11 +157,11 @@ title: Profile
     avatar.textContent = u;
     fitAvatar(avatar, u);
     info.textContent = 'Seneste 10 kampe, samt netto booster/money-gæld mod hver modstander.';
-    const last10 = await fetchMatchesFor(u, 10);
+
+    const last10 = await api.listMatchesFor(u, 10);
     lastList.innerHTML = '';
     if (!last10.length){
-      const li = document.createElement('li');
-      li.className = 'item';
+      const li = document.createElement('li'); li.className = 'item';
       li.innerHTML = '<span class="meta">Ingen kampe endnu.</span>';
       lastList.appendChild(li);
     } else {
@@ -177,31 +179,26 @@ title: Profile
         `;
         li.append(left);
         lastList.appendChild(li);
-           });
+      });
     }
 
-    // Ledger (brug alle kampe for u, ikke kun 10)
-    const all = await fetchMatchesFor(u, null);
+    // Ledger (brug ALLE kampe for u)
+    const all = await api.listMatchesFor(u);
     const ledger = {}; // opp => { booster: net, money: net }
     all.forEach(m=>{
       const type = (m.bet && (m.bet.type==='booster' || m.bet.type==='money')) ? m.bet.type : null;
       const amt = Number(m.bet?.amount || 0);
       if (!type || amt <= 0) return;
-
       const meIsP1 = up6(m.p1) === u;
       const opp = meIsP1 ? up6(m.p2) : up6(m.p1);
       if (!ledger[opp]) ledger[opp] = { booster: 0, money: 0 };
-
       if (m.winner === 'p1'){
-        if (meIsP1) ledger[opp][type] += amt;  // de skylder mig
-        else        ledger[opp][type] -= amt;  // jeg skylder dem
+        if (meIsP1) ledger[opp][type] += amt; else ledger[opp][type] -= amt;
       } else if (m.winner === 'p2'){
-        if (meIsP1) ledger[opp][type] -= amt;  // jeg skylder dem
-        else        ledger[opp][type] += amt;  // de skylder mig
+        if (meIsP1) ledger[opp][type] -= amt; else ledger[opp][type] += amt;
       }
     });
 
-    // Tøm og genopbyg listerne
     owedToMe.innerHTML = '';
     iOwe.innerHTML = '';
 
@@ -218,8 +215,6 @@ title: Profile
 
     opps.forEach(opp=>{
       const { booster, money } = ledger[opp];
-
-      // De skylder mig (positive værdier)
       if ((booster||0) > 0 || (money||0) > 0){
         const li = document.createElement('li'); li.className='item';
         const parts = [];
@@ -228,8 +223,6 @@ title: Profile
         li.innerHTML = `<strong>${opp}</strong><div class="meta">${parts.join(' • ') || '—'}</div>`;
         owedToMe.appendChild(li);
       }
-
-      // Jeg skylder (negative værdier)
       if ((booster||0) < 0 || (money||0) < 0){
         const li = document.createElement('li'); li.className='item';
         const parts = [];
@@ -240,7 +233,6 @@ title: Profile
       }
     });
 
-    // Hvis en af listerne endte tom, vis “ingen…”
     if (!owedToMe.children.length){
       const li = document.createElement('li'); li.className='item';
       li.innerHTML = '<span class="meta">Ingen gæld registreret.</span>';
@@ -253,7 +245,7 @@ title: Profile
     }
   }
 
-  // Første render af profil-listen
-  await renderProfiles();
+  // Første render
+  renderProfiles();
 })();
 </script>

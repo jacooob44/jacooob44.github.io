@@ -3,6 +3,32 @@ layout: default
 title: Matches
 ---
 
+<script>
+  // Din Apps Script URL her:
+  const API = "https://script.google.com/macros/s/AKfycbzprP3330YCRKrHfF-kqoR9pIOzkePw_zTyrIfqUWJTvZAjiLMHfkzR8bY4coutv_4srA/exec";
+  const up6 = s => (s||'').toUpperCase().slice(0,6).replace(/[^A-Z0-9]/g,'');
+  const api = {
+    async addMatch({p1,p2,when_ts,score,winner,bet_type,amount}) {
+      return fetch(API, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action:'add_match', p1,p2,when_ts,score,winner,bet_type,amount })
+      }).then(r=>r.json());
+    },
+    async listMatches() {
+      const url = API + '?action=list_matches';
+      return fetch(url).then(r=>r.json()).then(j=>j.data||[]);
+    },
+    async deleteMatch(id) {
+      return fetch(API, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action:'delete_match', id })
+      }).then(r=>r.json());
+    }
+  };
+</script>
+
 <div class="card">
   <h1>Create Match</h1>
   <div class="form-row" style="margin-top:8px;">
@@ -31,7 +57,7 @@ title: Matches
 </div>
 
 <script>
-(async function(){
+(function(){
   const listEl  = document.getElementById('list');
   const p1      = document.getElementById('p1');
   const p2      = document.getElementById('p2');
@@ -53,67 +79,15 @@ title: Matches
     const dd = String(d.getDate()).padStart(2,'0');
     return `${yyyy}-${mm}-${dd} ${nowTimeHHMMSS()}`;
   }
+
   function fmtWhen(ts){
     const d = new Date(ts);
     const pad = n=> String(n).padStart(2,'0');
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
   }
 
-  async function upsertProfile(i){
-    const initials = up6(i);
-    if (!initials) return;
-    await sb.from('profiles').insert({ initials }).select().single().catch(()=>{});
-  }
-
-  async function createMatch(){
-    const a = up6(p1.value);
-    const b = up6(p2.value);
-    const t = betType.value;
-    const amt = Number(amount.value);
-
-    if (!a || !b) return;
-    if (!t || !(t === 'booster' || t === 'money')) return;
-    if (!Number.isFinite(amt) || amt < 1 || amt > 5000) return;
-
-    const whenLocal = combineDateWithNow(dateIn.value);
-    const iso = whenLocal.replace(' ', 'T');
-
-    const row = {
-      p1: a, p2: b,
-      when_ts: iso,
-      score: (score.value || '').trim() || null,
-      winner: winner.value || null,
-      bet_type: t,
-      amount: amt
-    };
-    const { error } = await sb.from('matches').insert(row);
-    if (!error){
-      await Promise.all([upsertProfile(a), upsertProfile(b)]);
-      await render();
-      p1.value=''; p2.value=''; dateIn.value=''; score.value=''; winner.value=''; betType.value=''; amount.value='';
-    } else {
-      console.error(error);
-    }
-  }
-
-  async function fetchMatches(){
-    const { data, error } = await sb.from('matches').select('id,p1,p2,when_ts,score,winner,bet_type,amount').order('when_ts', { ascending:false });
-    if (error) { console.error(error); return []; }
-    return data.map(r => ({
-      id: r.id, p1: r.p1, p2: r.p2,
-      when: fmtWhen(r.when_ts),
-      score: r.score, winner: r.winner,
-      bet: { type: r.bet_type, amount: r.amount }
-    }));
-  }
-
-  async function deleteMatch(id){
-    await sb.from('matches').delete().eq('id', id);
-    await render();
-  }
-
   async function render(){
-    const items = await fetchMatches();
+    const items = await api.listMatches();
     listEl.innerHTML = '';
     if (!items.length){
       const li = document.createElement('li');
@@ -136,14 +110,25 @@ title: Matches
       `;
       const right = document.createElement('div');
       const del = document.createElement('button'); del.className = 'btn ghost'; del.textContent = 'Delete';
-      del.addEventListener('click', ()=> deleteMatch(m.id));
+      del.addEventListener('click', async ()=>{ await api.deleteMatch(m.id); await render(); });
       right.appendChild(del);
       li.append(left, right);
       listEl.appendChild(li);
     });
   }
 
-  document.getElementById('add').addEventListener('click', createMatch);
-  await render();
+  document.getElementById('add').addEventListener('click', async ()=>{
+    const a = up6(p1.value), b = up6(p2.value);
+    const t = betType.value; const amt = Number(amount.value);
+    if (!a || !b) return;
+    if (!(t==='booster' || t==='money')) return;
+    if (!Number.isFinite(amt) || amt<1 || amt>5000) return;
+    const iso = combineDateWithNow(dateIn.value).replace(' ','T'); // "YYYY-MM-DDTHH:mm:ss"
+    await api.addMatch({ p1:a, p2:b, when_ts: iso, score: (score.value||'').trim(), winner: winner.value||'', bet_type: t, amount: amt });
+    p1.value=''; p2.value=''; dateIn.value=''; score.value=''; winner.value=''; betType.value=''; amount.value='';
+    await render();
+  });
+
+  render();
 })();
 </script>
