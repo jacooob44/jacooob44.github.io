@@ -5,37 +5,59 @@ title: Profile
 
 <!-- API + JSONP helper -->
 <script>
-  // ← Sæt din Apps Script Web App URL (slutter på /exec)
-  const API = "https://script.google.com/macros/s/AKfycby27Miu4d9yvcz5QzD2z4opYixi5Kpdj6WMNIWLf1JCLhN3yZckQEN36OCtoBwHcvNqFA/exec";
+  /* ← Sæt din Apps Script Web App URL (slutter på /exec) */
+  const API = "PASTE_YOUR_EXEC_URL_HERE";
 
+  // Lille badge så vi kan se at JS kører og hvilken API der bruges
+  window.addEventListener('DOMContentLoaded', () => {
+    const b = document.createElement('div');
+    b.className = 'meta';
+    b.style.margin = '8px 0';
+    b.textContent = 'JS kører • API = ' + API;
+    document.querySelector('main')?.prepend(b);
+  });
+
+  // JSONP helper (ingen CORS)
   function jsonp(url){
     return new Promise((resolve, reject) => {
       const cb = 'cb_' + Math.random().toString(36).slice(2);
       const s = document.createElement('script');
       window[cb] = (data) => { resolve(data); delete window[cb]; s.remove(); };
       s.onerror = (e) => { reject(e); delete window[cb]; s.remove(); };
-      s.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + cb;
+      // cache-buster
+      s.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + cb + '&_=' + Date.now();
       document.head.appendChild(s);
     });
   }
 
   const up6 = s => (s||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
 
+  // API wrapper
   const api = {
-    listProfiles(){
-      return jsonp(`${API}?action=list_profiles`).then(j => j.ok ? (j.data||[]) : []);
+    async listProfiles(){
+      const res = await jsonp(`${API}?action=list_profiles`);
+      console.log('[API] listProfiles ->', res);
+      if (!res?.ok) return [];
+      // Tål både objekter og rene strenge
+      return (res.data || []).map(x => {
+        if (typeof x === 'string') return { initials: up6(x) };
+        if (x && typeof x === 'object' && 'initials' in x) return { initials: up6(x.initials) };
+        return null;
+      }).filter(Boolean);
     },
     addProfile(initials){
-      const qs = new URLSearchParams({ action:'add_profile', initials });
+      const qs = new URLSearchParams({ action:'add_profile', initials: up6(initials) });
       return jsonp(`${API}?${qs.toString()}`); // {ok:true}
     },
     deleteProfile(initials){
-      const qs = new URLSearchParams({ action:'delete_profile', initials });
+      const qs = new URLSearchParams({ action:'delete_profile', initials: up6(initials) });
       return jsonp(`${API}?${qs.toString()}`); // {ok:true}
     },
-    listMatchesFor(initials, limit){
-      const qs = new URLSearchParams({ action:'list_matches', initials, limit: limit?String(limit):'' });
-      return jsonp(`${API}?${qs.toString()}`).then(j => j.ok ? (j.data||[]) : []);
+    async listMatchesFor(initials, limit){
+      const qs = new URLSearchParams({ action:'list_matches', initials: up6(initials), limit: limit?String(limit):'' });
+      const res = await jsonp(`${API}?${qs.toString()}`);
+      console.log('[API] listMatchesFor ->', res);
+      return res?.ok ? (res.data || []) : [];
     }
   };
 </script>
@@ -56,6 +78,7 @@ title: Profile
   <div id="profilesList" style="display:grid; gap:10px;"></div>
 </div>
 
+<!-- Profil-detaljer nederst på siden -->
 <div class="card" id="profileDetail" style="display:none; gap:14px;">
   <h1 id="detailTitle">Profile</h1>
   <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
@@ -85,15 +108,17 @@ title: Profile
 
 <script>
 (function(){
-  const listEl = document.getElementById('profilesList');
+  // DOM refs
+  const listEl     = document.getElementById('profilesList');
   const detailCard = document.getElementById('profileDetail');
-  const title = document.getElementById('detailTitle');
-  const avatar = document.getElementById('detailAvatar');
-  const info = document.getElementById('detailInfo');
-  const lastList = document.getElementById('detailMatches');
-  const owedToMe = document.getElementById('ledgerOwedToMe');
-  const iOwe     = document.getElementById('ledgerIOwe');
+  const title      = document.getElementById('detailTitle');
+  const avatar     = document.getElementById('detailAvatar');
+  const info       = document.getElementById('detailInfo');
+  const lastList   = document.getElementById('detailMatches');
+  const owedToMe   = document.getElementById('ledgerOwedToMe');
+  const iOwe       = document.getElementById('ledgerIOwe');
 
+  // Helpers
   function fitAvatar(el, text){
     const len = (text||'').length;
     let size = 28;
@@ -111,6 +136,7 @@ title: Profile
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
   }
 
+  // Create profile
   document.getElementById('addProfile').addEventListener('click', async ()=>{
     const inp = document.getElementById('newProfile');
     const i = up6(inp.value);
@@ -120,16 +146,28 @@ title: Profile
     await renderProfiles();
   });
 
+  // Render alle profiler
   async function renderProfiles(){
-    const arr = await api.listProfiles();
+    const arr = await api.listProfiles(); // [{initials:'…'}]
     listEl.innerHTML = '';
+
     if (!arr.length){
       const empty = document.createElement('div');
       empty.className = 'item';
       empty.innerHTML = '<span class="meta">Ingen profiler endnu. Opret ovenfor.</span>';
       listEl.appendChild(empty);
+
+      // DEBUG: vis rå data fra API (hjælper hvis noget stadig er off)
+      const dbg = document.createElement('pre');
+      dbg.style.background = '#111'; dbg.style.color = '#0f0';
+      dbg.style.padding = '8px'; dbg.style.marginTop = '8px'; dbg.style.overflow = 'auto';
+      jsonp(API + '?action=list_profiles').then(raw=>{
+        dbg.textContent = 'DEBUG listProfiles råt:\n' + JSON.stringify(raw, null, 2);
+      });
+      listEl.appendChild(dbg);
       return;
     }
+
     arr.forEach(({ initials:i })=>{
       const row = document.createElement('div');
       row.className = 'item';
@@ -171,6 +209,7 @@ title: Profile
     });
   }
 
+  // Vis profil-detaljer
   async function showProfileDetail(initials){
     const u = up6(initials);
     detailCard.style.display = 'grid';
@@ -269,57 +308,6 @@ title: Profile
 
   // Første render
   renderProfiles();
-
-  async function renderProfiles(){
-    const arr = await api.listProfiles();
-    listEl.innerHTML = '';
-    if (!arr.length){
-      const empty = document.createElement('div');
-      empty.className = 'item';
-      empty.innerHTML = '<span class="meta">Ingen profiler endnu. Opret ovenfor.</span>';
-      listEl.appendChild(empty);
-      return;
-    }
-    arr.forEach(({ initials:i })=>{
-      const row = document.createElement('div');
-      row.className = 'item';
-
-      const left = document.createElement('div');
-      left.style.display='flex';
-      left.style.alignItems='center';
-      left.style.gap='10px';
-
-      const av = document.createElement('div'); 
-      av.className = 'avatar'; 
-      av.textContent = i;
-      fitAvatar(av, i);
-
-      const txt = document.createElement('div');
-      txt.innerHTML = `<strong>${i}</strong><div class="meta">Open for profile & matches</div>`;
-      left.append(av, txt);
-
-      const open = document.createElement('button');
-      open.className = 'btn';
-      open.textContent = 'Open';
-      open.addEventListener('click', ()=> showProfileDetail(i));
-
-      const del = document.createElement('button');
-      del.className = 'btn ghost';
-      del.textContent = 'Delete';
-      del.addEventListener('click', async ()=>{
-        await api.deleteProfile(i);
-        await renderProfiles();
-        if ((title.dataset.u||'') === i) detailCard.style.display='none';
-      });
-
-      const right = document.createElement('div');
-      right.style.display='flex'; right.style.gap='8px';
-      right.append(open, del);
-
-      row.append(left, right);
-      listEl.appendChild(row);
-    });
-  }
 
 })();
 </script>
