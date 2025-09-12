@@ -1,0 +1,22 @@
+---
+layout: default
+title: Health Check
+---
+
+<script>
+  const API = "PASTE_YOUR_EXEC_URL_HERE";
+
+  async function test() {
+    const o = document.getElementById('out');
+    try {
+      const p = await fetch(API + '?action=list_profiles').then(r=>r.json());
+      const m = await fetch(API + '?action=list_matches').then(r=>r.json());
+      o.textContent = 'profiles:\n' + JSON.stringify(p,null,2) + '\n\nmatches:\n' + JSON.stringify(m,null,2);
+    } catch (e) {
+      o.textContent = 'FEJL:\n' + e;
+    }
+  }
+  document.addEventListener('DOMContentLoaded', test);
+</script>
+
+<pre id="out" class="card" style="padding:16px; overflow:auto;">Tester…</pre>
