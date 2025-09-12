@@ -4,27 +4,27 @@ title: Matches
 ---
 
 <script>
-  // Din Apps Script URL her:
+  // ← Sæt din Apps Script Web App URL (slutter på /exec)
   const API = "https://script.google.com/macros/s/AKfycbzprP3330YCRKrHfF-kqoR9pIOzkePw_zTyrIfqUWJTvZAjiLMHfkzR8bY4coutv_4srA/exec";
-  const up6 = s => (s||'').toUpperCase().slice(0,6).replace(/[^A-Z0-9]/g,'');
+
+  const up6 = s => (s||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
+
   const api = {
-    async addMatch({p1,p2,when_ts,score,winner,bet_type,amount}) {
-      return fetch(API, {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ action:'add_match', p1,p2,when_ts,score,winner,bet_type,amount })
-      }).then(r=>r.json());
-    },
     async listMatches() {
-      const url = API + '?action=list_matches';
-      return fetch(url).then(r=>r.json()).then(j=>j.data||[]);
+      return fetch(`${API}?action=list_matches`)
+        .then(r=>r.json()).then(j=>j.data||[]);
+    },
+    async addMatch({p1,p2,when_ts,score,winner,bet_type,amount}) {
+      const qs = new URLSearchParams({
+        action:'add_match', p1,p2, when_ts, score: (score||''), winner: (winner||''),
+        bet_type, amount: String(amount)
+      });
+      return fetch(`${API}?${qs.toString()}`)
+        .then(r=>r.json());
     },
     async deleteMatch(id) {
-      return fetch(API, {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ action:'delete_match', id })
-      }).then(r=>r.json());
+      const qs = new URLSearchParams({ action:'delete_match', id });
+      return fetch(`${API}?${qs.toString()}`).then(r=>r.json());
     }
   };
 </script>
@@ -79,7 +79,6 @@ title: Matches
     const dd = String(d.getDate()).padStart(2,'0');
     return `${yyyy}-${mm}-${dd} ${nowTimeHHMMSS()}`;
   }
-
   function fmtWhen(ts){
     const d = new Date(ts);
     const pad = n=> String(n).padStart(2,'0');

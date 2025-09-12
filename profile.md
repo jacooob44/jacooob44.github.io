@@ -4,36 +4,43 @@ title: Profile
 ---
 
 <script>
+  // ← Sæt din Apps Script Web App URL (slutter på /exec)
   const API = "https://script.google.com/macros/s/AKfycbzprP3330YCRKrHfF-kqoR9pIOzkePw_zTyrIfqUWJTvZAjiLMHfkzR8bY4coutv_4srA/exec";
-  const up6 = s => (s||'').toUpperCase().slice(0,6).replace(/[^A-Z0-9]/g,'');
+
+  const up6 = s => (s||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
+
   const api = {
-    async listProfiles(){ return fetch(API + '?action=list_profiles').then(r=>r.json()).then(j=>j.data||[]); },
+    async listProfiles(){
+      return fetch(`${API}?action=list_profiles`)
+        .then(r=>r.json()).then(j=>j.data||[]);
+    },
     async addProfile(initials){
-      return fetch(API,{ method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ action:'add_profile', initials })
-      }).then(r=>r.json());
+      const qs = new URLSearchParams({ action:'add_profile', initials });
+      return fetch(`${API}?${qs.toString()}`).then(r=>r.json());
     },
     async deleteProfile(initials){
-      return fetch(API,{ method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ action:'delete_profile', initials })
-      }).then(r=>r.json());
+      const qs = new URLSearchParams({ action:'delete_profile', initials });
+      return fetch(`${API}?${qs.toString()}`).then(r=>r.json());
     },
     async listMatchesFor(initials, limit){
-      const url = API + `?action=list_matches&initials=${encodeURIComponent(initials)}${limit?`&limit=${limit}`:''}`;
-      return fetch(url).then(r=>r.json()).then(j=>j.data||[]);
+      const qs = new URLSearchParams({ action:'list_matches', initials, limit: limit?String(limit):'' });
+      return fetch(`${API}?${qs.toString()}`).then(r=>r.json()).then(j=>j.data||[]);
     }
   };
 </script>
 
 <div class="card" style="display:grid; gap:14px;">
   <h1>Profiles</h1>
+
   <h2>Create profile</h2>
   <div class="form-row">
     <input class="input" id="newProfile" placeholder="Initials (op til 6 tegn, fx MKR123)" maxlength="6">
     <button class="btn" id="addProfile" type="button">Save</button>
   </div>
   <p class="meta">Profiler deles via Google Sheet (Apps Script).</p>
+
   <hr class="sep">
+
   <h2>All profiles</h2>
   <div id="profilesList" style="display:grid; gap:10px;"></div>
 </div>
@@ -44,10 +51,14 @@ title: Profile
     <div class="avatar" id="detailAvatar">??</div>
     <p class="meta" id="detailInfo"></p>
   </div>
+
   <hr class="sep">
+
   <h2>Last 10 matches</h2>
   <ul class="list" id="detailMatches"></ul>
+
   <hr class="sep">
+
   <h2>Booster / Money ledger</h2>
   <div style="display:grid; gap:12px; grid-template-columns: repeat(auto-fit,minmax(260px,1fr));">
     <div class="card" style="padding:16px;">
@@ -247,5 +258,6 @@ title: Profile
 
   // Første render
   renderProfiles();
+
 })();
 </script>
