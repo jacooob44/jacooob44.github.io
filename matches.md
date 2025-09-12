@@ -6,7 +6,7 @@ title: Matches
 <!-- API + JSONP helper -->
 <script>
   // ← Sæt din Apps Script Web App URL (slutter på /exec)
-  const API = "https://script.google.com/macros/s/AKfycby27Miu4d9yvcz5QzD2z4opYixi5Kpdj6WMNIWLf1JCLhN3yZckQEN36OCtoBwHcvNqFA/exec";
+  const API = "https://script.google.com/macros/s/AKfycbzaGHDNP5rQQ1w3PxsXFLvnAs1SIaD5rXEHxw-iEV9fAu3jNVYdIxqo2JqocNXiC5wmSQ/exec";
 
   // JSONP helper (ingen CORS)
   function jsonp(url){

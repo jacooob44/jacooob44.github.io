@@ -6,7 +6,7 @@ title: Profile
 <!-- API + JSONP helper -->
 <script>
   /* ← Sæt din Apps Script Web App URL (slutter på /exec) */
-  const API = "PASTE_YOUR_EXEC_URL_HERE";
+  const API = "https://script.google.com/macros/s/AKfycbzaGHDNP5rQQ1w3PxsXFLvnAs1SIaD5rXEHxw-iEV9fAu3jNVYdIxqo2JqocNXiC5wmSQ/exec";
 
   // Lille badge så vi kan se at JS kører og hvilken API der bruges
   window.addEventListener('DOMContentLoaded', () => {
