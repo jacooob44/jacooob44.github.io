@@ -3,28 +3,39 @@ layout: default
 title: Profile
 ---
 
+<!-- API + JSONP helper -->
 <script>
   // ← Sæt din Apps Script Web App URL (slutter på /exec)
-  const API = "https://script.google.com/macros/s/AKfycbzprP3330YCRKrHfF-kqoR9pIOzkePw_zTyrIfqUWJTvZAjiLMHfkzR8bY4coutv_4srA/exec";
+  const API = "https://script.google.com/macros/s/AKfycby27Miu4d9yvcz5QzD2z4opYixi5Kpdj6WMNIWLf1JCLhN3yZckQEN36OCtoBwHcvNqFA/exec";
+
+  function jsonp(url){
+    return new Promise((resolve, reject) => {
+      const cb = 'cb_' + Math.random().toString(36).slice(2);
+      const s = document.createElement('script');
+      window[cb] = (data) => { resolve(data); delete window[cb]; s.remove(); };
+      s.onerror = (e) => { reject(e); delete window[cb]; s.remove(); };
+      s.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + cb;
+      document.head.appendChild(s);
+    });
+  }
 
   const up6 = s => (s||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
 
   const api = {
-    async listProfiles(){
-      return fetch(`${API}?action=list_profiles`)
-        .then(r=>r.json()).then(j=>j.data||[]);
+    listProfiles(){
+      return jsonp(`${API}?action=list_profiles`).then(j => j.ok ? (j.data||[]) : []);
     },
-    async addProfile(initials){
+    addProfile(initials){
       const qs = new URLSearchParams({ action:'add_profile', initials });
-      return fetch(`${API}?${qs.toString()}`).then(r=>r.json());
+      return jsonp(`${API}?${qs.toString()}`); // {ok:true}
     },
-    async deleteProfile(initials){
+    deleteProfile(initials){
       const qs = new URLSearchParams({ action:'delete_profile', initials });
-      return fetch(`${API}?${qs.toString()}`).then(r=>r.json());
+      return jsonp(`${API}?${qs.toString()}`); // {ok:true}
     },
-    async listMatchesFor(initials, limit){
+    listMatchesFor(initials, limit){
       const qs = new URLSearchParams({ action:'list_matches', initials, limit: limit?String(limit):'' });
-      return fetch(`${API}?${qs.toString()}`).then(r=>r.json()).then(j=>j.data||[]);
+      return jsonp(`${API}?${qs.toString()}`).then(j => j.ok ? (j.data||[]) : []);
     }
   };
 </script>
@@ -258,6 +269,57 @@ title: Profile
 
   // Første render
   renderProfiles();
+
+  async function renderProfiles(){
+    const arr = await api.listProfiles();
+    listEl.innerHTML = '';
+    if (!arr.length){
+      const empty = document.createElement('div');
+      empty.className = 'item';
+      empty.innerHTML = '<span class="meta">Ingen profiler endnu. Opret ovenfor.</span>';
+      listEl.appendChild(empty);
+      return;
+    }
+    arr.forEach(({ initials:i })=>{
+      const row = document.createElement('div');
+      row.className = 'item';
+
+      const left = document.createElement('div');
+      left.style.display='flex';
+      left.style.alignItems='center';
+      left.style.gap='10px';
+
+      const av = document.createElement('div'); 
+      av.className = 'avatar'; 
+      av.textContent = i;
+      fitAvatar(av, i);
+
+      const txt = document.createElement('div');
+      txt.innerHTML = `<strong>${i}</strong><div class="meta">Open for profile & matches</div>`;
+      left.append(av, txt);
+
+      const open = document.createElement('button');
+      open.className = 'btn';
+      open.textContent = 'Open';
+      open.addEventListener('click', ()=> showProfileDetail(i));
+
+      const del = document.createElement('button');
+      del.className = 'btn ghost';
+      del.textContent = 'Delete';
+      del.addEventListener('click', async ()=>{
+        await api.deleteProfile(i);
+        await renderProfiles();
+        if ((title.dataset.u||'') === i) detailCard.style.display='none';
+      });
+
+      const right = document.createElement('div');
+      right.style.display='flex'; right.style.gap='8px';
+      right.append(open, del);
+
+      row.append(left, right);
+      listEl.appendChild(row);
+    });
+  }
 
 })();
 </script>
