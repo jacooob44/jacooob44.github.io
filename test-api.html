@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>API Test</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>body{font-family:system-ui,sans-serif;padding:16px} pre{background:#111;color:#0f0;padding:12px;overflow:auto}</style>
+</head>
+<body>
+  <h1>API Test</h1>
+  <p>Hvis du ser JSON herunder, virker forbindelsen.</p>
+  <pre id="out">Tester…</pre>
+
+  <script>
+    const API = "https://script.google.com/macros/s/…/exec"; // ← din URL
+    async function run(){
+      const out = document.getElementById('out');
+      try {
+        const p = await fetch(API + '?action=list_profiles').then(r=>r.json());
+        const m = await fetch(API + '?action=list_matches').then(r=>r.json());
+        out.textContent = 'profiles:\n' + JSON.stringify(p,null,2) + '\n\nmatches:\n' + JSON.stringify(m,null,2);
+      } catch (e) {
+        out.textContent = 'FEJL: ' + (e && e.message ? e.message : e);
+      }
+    }
+    run();
+  </script>
+</body>
+</html>

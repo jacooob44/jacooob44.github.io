@@ -7,24 +7,51 @@ title: Matches
   // ← Sæt din Apps Script Web App URL (slutter på /exec)
   const API = "https://script.google.com/macros/s/AKfycbzprP3330YCRKrHfF-kqoR9pIOzkePw_zTyrIfqUWJTvZAjiLMHfkzR8bY4coutv_4srA/exec";
 
+  <script>
+  console.log('[DEBUG] API =', API);
+  window.addEventListener('DOMContentLoaded', () => {
+    const badge = document.createElement('div');
+    badge.className = 'meta';
+    badge.textContent = 'JS kører ✔ (Matches)';
+    document.body.prepend(badge);
+  });
+</script>
+
+  const up6 = s => (s||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
+
+<script>
   const up6 = s => (s||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
 
   const api = {
     async listMatches() {
-      return fetch(`${API}?action=list_matches`)
-        .then(r=>r.json()).then(j=>j.data||[]);
+      const url = `${API}?action=list_matches`;
+      console.log('[API] GET', url);
+      const res = await fetch(url);
+      const json = await res.json();
+      console.log('[API] listMatches ->', json);
+      return json.ok ? (json.data||[]) : [];
     },
     async addMatch({p1,p2,when_ts,score,winner,bet_type,amount}) {
       const qs = new URLSearchParams({
         action:'add_match', p1,p2, when_ts, score: (score||''), winner: (winner||''),
         bet_type, amount: String(amount)
       });
-      return fetch(`${API}?${qs.toString()}`)
-        .then(r=>r.json());
+      const url = `${API}?${qs.toString()}`;
+      console.log('[API] GET', url);
+      const res = await fetch(url);
+      const json = await res.json();
+      console.log('[API] addMatch ->', json);
+      if (!json.ok) alert('Kunne ikke oprette kamp: ' + (json.error||'ukendt fejl'));
+      return json;
     },
     async deleteMatch(id) {
-      const qs = new URLSearchParams({ action:'delete_match', id });
-      return fetch(`${API}?${qs.toString()}`).then(r=>r.json());
+      const url = `${API}?action=delete_match&id=${encodeURIComponent(id)}`;
+      console.log('[API] GET', url);
+      const res = await fetch(url);
+      const json = await res.json();
+      console.log('[API] deleteMatch ->', json);
+      if (!json.ok) alert('Kunne ikke slette kamp: ' + (json.error||'ukendt fejl'));
+      return json;
     }
   };
 </script>
