@@ -40,29 +40,29 @@ title: Matches
 </script>
 
 <div class="card">
-  <h1>Create Match</h1>
+  <h1>Opret kamp</h1>
   <div class="form-row" style="margin-top:8px;">
-    <input class="input" id="p1" placeholder="Player 1 (fx initialer)" required>
-    <input class="input" id="p2" placeholder="Player 2 (fx initialer)" required>
+    <input class="input" id="p1" placeholder="Norlys Konsulent " required>
+    <input class="input" id="p2" placeholder="Norlys Konsulent" required>
     <input class="input" id="date" type="date" aria-label="Date">
   </div>
   <div class="form-row" style="margin-top:8px;">
-    <input class="input" id="score" placeholder="Score (fx 3-2)">
-    <select class="input" id="winner" aria-label="Winner">
+    <input class="input" id="score" placeholder="Resultat">
+    <select class="input" id="winner" aria-label="Vinder">
       <option value="">Winner?</option>
       <option value="p1">Player 1</option>
       <option value="p2">Player 2</option>
     </select>
-    <select class="input" id="betType" aria-label="Bet type" required>
+    <select class="input" id="betType" aria-label="Bet" required>
       <option value="">Bet type</option>
       <option value="booster">Booster</option>
       <option value="money">Money</option>
     </select>
-    <input class="input" id="amount" type="number" min="1" max="5000" placeholder="Amount (1–5000)">
+    <input class="input" id="amount" type="number" min="1" max="5000" placeholder="Antal">
     <button class="btn" id="add" type="button">Add</button>
   </div>
   <hr style="border:0; height:1px; background: var(--border); margin:16px 0;">
-  <h2>All Matches</h2>
+  <h2>Kampe Spillet</h2>
   <ul class="list" id="list"></ul>
 </div>
 

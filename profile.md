@@ -13,7 +13,7 @@ title: Profile
     const b = document.createElement('div');
     b.className = 'meta';
     b.style.margin = '8px 0';
-    b.textContent = 'JS kører • API = ' + API;
+    b.textContent = 'HELD OG LYKKE DERUDE - FLERE OPDATERINGER KOMMER LØBENDE :)';
     document.querySelector('main')?.prepend(b);
   });
 
@@ -63,18 +63,18 @@ title: Profile
 </script>
 
 <div class="card" style="display:grid; gap:14px;">
-  <h1>Profiles</h1>
+  <h1>Profiler</h1>
 
-  <h2>Create profile</h2>
+  <h2>Opret Konsulent</h2>
   <div class="form-row">
-    <input class="input" id="newProfile" placeholder="Initials (op til 6 tegn, fx MKR123)" maxlength="6">
+    <input class="input" id="newProfile" placeholder="Norlys Initialer" maxlength="6">
     <button class="btn" id="addProfile" type="button">Save</button>
   </div>
-  <p class="meta">Profiler deles via Google Sheet (Apps Script).</p>
+  <p class="meta">Profiler ses nedenfor...</p>
 
   <hr class="sep">
 
-  <h2>All profiles</h2>
+  <h2>Profiler!</h2>
   <div id="profilesList" style="display:grid; gap:10px;"></div>
 </div>
 
@@ -93,14 +93,14 @@ title: Profile
 
   <hr class="sep">
 
-  <h2>Booster / Money ledger</h2>
+  <h2>GÆLD</h2>
   <div style="display:grid; gap:12px; grid-template-columns: repeat(auto-fit,minmax(260px,1fr));">
     <div class="card" style="padding:16px;">
-      <h2 style="margin-bottom:8px;">De skylder mig</h2>
+      <h2 style="margin-bottom:8px;">De skylder!</h2>
       <ul class="list" id="ledgerOwedToMe"></ul>
     </div>
     <div class="card" style="padding:16px;">
-      <h2 style="margin-bottom:8px;">Jeg skylder</h2>
+      <h2 style="margin-bottom:8px;">Jeg skylder!</h2>
       <ul class="list" id="ledgerIOwe"></ul>
     </div>
   </div>
@@ -183,7 +183,7 @@ title: Profile
       fitAvatar(av, i);
 
       const txt = document.createElement('div');
-      txt.innerHTML = `<strong>${i}</strong><div class="meta">Open for profile & matches</div>`;
+      txt.innerHTML = `<strong>${i}</strong><div class="meta">Åben profil for data..</div>`;
       left.append(av, txt);
 
       const open = document.createElement('button');
@@ -213,11 +213,11 @@ title: Profile
   async function showProfileDetail(initials){
     const u = up6(initials);
     detailCard.style.display = 'grid';
-    title.textContent = `Profile: ${u}`;
+    title.textContent = `Norlys Konsulent: ${u}`;
     title.dataset.u = u;
     avatar.textContent = u;
     fitAvatar(avatar, u);
-    info.textContent = 'Seneste 10 kampe, samt netto booster/money-gæld mod hver modstander.';
+    info.textContent = 'Nedenfor ses seneste 10 kampe, plus konsulentens gæld... #ROFUS';
 
     const last10 = await api.listMatchesFor(u, 10);
     lastList.innerHTML = '';
