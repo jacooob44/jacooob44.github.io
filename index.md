@@ -1,8 +1,8 @@
 ---
-title: Home
+title: Start
 ---
 
 <div class="card">
-  <h1>Welcome 👋</h1>
-  <p class="meta">Vælg en fane ovenfor for at se din profil eller oprette en kamp.</p>
+  <h1>Velkommen til ARKET</h1>
+  <p class="meta">Vælg en af kategorierne for at komme igang...</p>
 </div>
